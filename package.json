@@ -4,7 +4,29 @@
   "private": true,
   "description": "Starter MVP for a creator-first social media platform.",
   "scripts": {
-    "dev": "node app/server.mjs",
-    "check": "node --check app/app.js && node --check app/server.mjs"
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "next": "16.2.10",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "@monaco-editor/react": "^4.7.0",
+    "@neondatabase/serverless": "^1.1.0",
+    "postgres": "^3.4.9",
+    "lucide-react": "^0.544.0"
+  },
+  "devDependencies": {
+    "typescript": "^5",
+    "@types/node": "^24",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "tailwindcss": "^4",
+    "@tailwindcss/postcss": "^4",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.10"
   }
 }
