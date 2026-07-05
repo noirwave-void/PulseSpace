@@ -1,9 +1,9 @@
 :root {
   color-scheme: light;
-  --bg: #f8f4f2;
+  --bg: #f8f6f3;
   --panel: rgba(255, 255, 255, 0.9);
   --panel-solid: #ffffff;
-  --panel-soft: #fff7f1;
+  --panel-soft: #fff8f2;
   --text: #17151f;
   --muted: #726c7c;
   --line: rgba(40, 33, 50, 0.11);
@@ -14,7 +14,7 @@
   --teal: #1aa99a;
   --blue: #4176e8;
   --gold: #f3b750;
-  --shadow: 0 18px 50px rgba(47, 33, 56, 0.1);
+  --shadow: 0 18px 48px rgba(47, 33, 56, 0.1);
   --radius: 8px;
   font-family:
     Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
@@ -29,9 +29,8 @@ body {
   min-height: 100vh;
   margin: 0;
   background:
-    radial-gradient(circle at 10% 0%, rgba(232, 93, 117, 0.16), transparent 32rem),
-    radial-gradient(circle at 90% 6%, rgba(26, 169, 154, 0.13), transparent 30rem),
-    linear-gradient(135deg, #fffaf7 0%, #f6f1ff 48%, #eefaf7 100%);
+    linear-gradient(140deg, rgba(255, 250, 247, 0.98) 0%, rgba(249, 244, 255, 0.96) 48%, rgba(239, 250, 247, 0.98) 100%),
+    #f8f6f3;
   color: var(--text);
 }
 
@@ -52,6 +51,12 @@ video {
   max-width: 100%;
 }
 
+a {
+  color: var(--blue);
+  font-weight: 800;
+  text-decoration: none;
+}
+
 .app-shell {
   display: grid;
   grid-template-columns: 242px minmax(0, 1fr);
@@ -67,13 +72,13 @@ video {
   height: 100vh;
   padding: 24px 18px;
   border-right: 1px solid var(--line);
-  background: rgba(255, 255, 255, 0.68);
+  background: rgba(255, 255, 255, 0.7);
   backdrop-filter: blur(22px);
 }
 
 .brand,
-.sidebar-profile,
-.identity {
+.identity,
+.sidebar-profile-button {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -89,13 +94,11 @@ video {
   width: 44px;
   height: 44px;
   place-items: center;
-  border-radius: 14px;
-  background:
-    linear-gradient(135deg, rgba(232, 93, 117, 0.95), rgba(33, 28, 46, 0.95)),
-    var(--accent);
+  border-radius: var(--radius);
+  background: linear-gradient(135deg, var(--rose), var(--accent));
   color: #fff;
   font-weight: 900;
-  box-shadow: 0 10px 24px rgba(232, 93, 117, 0.28);
+  box-shadow: 0 10px 24px rgba(232, 93, 117, 0.22);
 }
 
 .brand strong,
@@ -118,8 +121,10 @@ video {
 .result-card p,
 .search-hero p,
 .dm-note p,
-.profile-copy p,
-.profile-copy span {
+.profile-bio p,
+.profile-main span,
+.auth-brand p,
+.demo-credentials {
   color: var(--muted);
 }
 
@@ -150,7 +155,7 @@ video {
 .nav-item:focus-visible,
 .nav-item.is-active {
   border-color: var(--line);
-  background: rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.76);
   outline: none;
   transform: translateY(-1px);
 }
@@ -166,7 +171,7 @@ video {
   place-items: center;
   border: 1px solid var(--line);
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.75);
+  background: rgba(255, 255, 255, 0.78);
   font-size: 0.82rem;
   font-weight: 900;
 }
@@ -179,10 +184,21 @@ video {
 
 .sidebar-profile {
   margin-top: auto;
-  padding: 10px;
+  padding: 8px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  background: rgba(255, 255, 255, 0.64);
+  background: rgba(255, 255, 255, 0.66);
+}
+
+.sidebar-profile-button,
+.identity-button,
+.focus-author,
+.result-link {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
 }
 
 .main-panel {
@@ -201,16 +217,17 @@ video {
   max-width: 1100px;
   margin: -24px auto 22px;
   padding: 18px 0 14px;
-  background: rgba(248, 244, 242, 0.76);
+  background: rgba(248, 246, 243, 0.78);
   backdrop-filter: blur(20px);
 }
 
 .topbar h1,
 .create-card h2,
-.profile-header h2 {
+.profile-main h2,
+.auth-brand h1 {
   margin: 0;
   font-size: 2rem;
-  line-height: 1.05;
+  line-height: 1.08;
 }
 
 .eyebrow {
@@ -244,16 +261,58 @@ video {
   min-width: 0;
 }
 
-.home-layout {
-  max-width: 690px;
-  margin: 0 auto;
+.auth-mode .app-shell {
+  display: block;
 }
 
-.stack {
+.auth-mode .sidebar,
+.auth-mode .topbar {
+  display: none;
+}
+
+.auth-mode .main-panel {
   display: grid;
-  gap: 16px;
+  min-height: 100vh;
+  place-items: center;
+  padding: 28px;
 }
 
+.auth-mode .page-frame {
+  width: min(980px, 100%);
+  max-width: none;
+}
+
+.auth-shell {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(320px, 0.72fr);
+  gap: 28px;
+  align-items: center;
+}
+
+.auth-brand {
+  display: grid;
+  gap: 18px;
+}
+
+.auth-brand .brand-mark {
+  width: 58px;
+  height: 58px;
+  font-size: 1.3rem;
+}
+
+.auth-brand h1 {
+  max-width: 11ch;
+  font-size: 3rem;
+}
+
+.auth-brand p {
+  max-width: 52ch;
+  margin: 0;
+  font-size: 1.02rem;
+  line-height: 1.7;
+}
+
+.auth-card,
 .loading-card,
 .panel,
 .post-card,
@@ -261,8 +320,9 @@ video {
 .create-card,
 .community-card,
 .message-card,
-.profile-header,
-.profile-grid-card,
+.instagram-profile,
+.highlight-row,
+.profile-tile,
 .result-card,
 .search-hero,
 .dm-note,
@@ -274,6 +334,91 @@ video {
   backdrop-filter: blur(18px);
 }
 
+.auth-card {
+  display: grid;
+  gap: 18px;
+  padding: 18px;
+}
+
+.auth-tabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.auth-tabs button {
+  min-height: 42px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.7);
+  color: var(--text);
+  font-weight: 850;
+}
+
+.auth-tabs button.is-active {
+  border-color: transparent;
+  background: linear-gradient(135deg, var(--rose), var(--coral));
+  color: #fff;
+}
+
+.auth-form {
+  display: grid;
+  gap: 14px;
+}
+
+.auth-form label {
+  display: grid;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 0.84rem;
+  font-weight: 850;
+}
+
+.auth-form input,
+.comment-form input,
+.search-input-label input,
+.composer-form textarea,
+.composer-form select,
+.file-control {
+  width: 100%;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.76);
+  color: var(--text);
+}
+
+.auth-form input,
+.comment-form input,
+.search-input-label input {
+  min-height: 44px;
+  padding: 0 14px;
+  border-radius: 999px;
+}
+
+.auth-form input:focus,
+.comment-form input:focus,
+.search-input-label input:focus,
+.composer-form textarea:focus,
+.composer-form select:focus,
+.file-control:focus {
+  border-color: rgba(232, 93, 117, 0.65);
+  outline: 3px solid rgba(232, 93, 117, 0.14);
+}
+
+.demo-credentials {
+  margin: 0;
+  font-size: 0.84rem;
+}
+
+.home-layout {
+  max-width: 690px;
+  margin: 0 auto;
+}
+
+.stack {
+  display: grid;
+  gap: 16px;
+}
+
 .loading-card,
 .empty-state {
   padding: 28px;
@@ -283,6 +428,7 @@ video {
 .empty-state p {
   max-width: 46ch;
   margin: 8px auto 0;
+  color: var(--muted);
 }
 
 .story-strip {
@@ -308,12 +454,11 @@ video {
   width: 62px;
   height: 62px;
   place-items: center;
-  border: 0;
+  border: 3px solid transparent;
   border-radius: 50%;
   background:
     linear-gradient(#fff, #fff) padding-box,
     linear-gradient(135deg, var(--rose), var(--gold), var(--teal)) border-box;
-  border: 3px solid transparent;
 }
 
 .story-ring span,
@@ -390,7 +535,7 @@ video {
   border-color: transparent;
   background: linear-gradient(135deg, var(--rose), var(--coral));
   color: #fff;
-  box-shadow: 0 10px 22px rgba(232, 93, 117, 0.22);
+  box-shadow: 0 10px 22px rgba(232, 93, 117, 0.2);
 }
 
 .primary-button {
@@ -430,6 +575,16 @@ video {
   padding: 14px 16px;
 }
 
+.identity {
+  min-width: 0;
+}
+
+.identity-button:hover strong,
+.focus-author:hover strong,
+.result-link:hover h3 {
+  text-decoration: underline;
+}
+
 .identity strong {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -449,9 +604,9 @@ video {
 }
 
 .large-avatar {
-  width: 98px;
-  height: 98px;
-  font-size: 1.55rem;
+  width: 116px;
+  height: 116px;
+  font-size: 1.7rem;
 }
 
 .post-type-label,
@@ -574,33 +729,6 @@ video {
   gap: 8px;
 }
 
-.comment-form input,
-.search-input-label input,
-.composer-form textarea,
-.composer-form select,
-.file-control {
-  width: 100%;
-  border: 1px solid var(--line);
-  background: rgba(255, 255, 255, 0.74);
-  color: var(--text);
-}
-
-.comment-form input,
-.search-input-label input {
-  min-height: 42px;
-  padding: 0 14px;
-  border-radius: 999px;
-}
-
-.comment-form input:focus,
-.search-input-label input:focus,
-.composer-form textarea:focus,
-.composer-form select:focus,
-.file-control:focus {
-  border-color: rgba(232, 93, 117, 0.65);
-  outline: 3px solid rgba(232, 93, 117, 0.14);
-}
-
 .discover-layout {
   display: grid;
   min-height: calc(100vh - 150px);
@@ -624,7 +752,7 @@ video {
   width: 100%;
   height: min(720px, calc(100vh - 210px));
   object-fit: cover;
-  opacity: 0.86;
+  opacity: 0.88;
 }
 
 .focus-card::after {
@@ -639,10 +767,7 @@ video {
   min-height: min(720px, calc(100vh - 210px));
   place-items: center;
   padding: 34px;
-  background:
-    radial-gradient(circle at 20% 10%, rgba(232, 93, 117, 0.35), transparent 18rem),
-    radial-gradient(circle at 80% 90%, rgba(26, 169, 154, 0.3), transparent 18rem),
-    #211c2e;
+  background: linear-gradient(135deg, #211c2e, #4c364d 52%, #1b766f);
 }
 
 .focus-thread p {
@@ -664,8 +789,16 @@ video {
   line-height: 1.45;
 }
 
-.focus-caption span {
+.focus-caption span,
+.focus-author span {
   color: rgba(255, 255, 255, 0.78);
+}
+
+.focus-author {
+  display: grid;
+  gap: 2px;
+  padding: 0;
+  color: #fff;
 }
 
 .focus-actions {
@@ -697,6 +830,11 @@ video {
   margin-top: 12px;
   color: var(--muted);
   font-weight: 850;
+}
+
+.focus-comments {
+  width: min(690px, 100%);
+  margin-top: 16px;
 }
 
 .create-layout,
@@ -801,8 +939,7 @@ video {
 
 .search-results,
 .community-grid,
-.message-grid,
-.profile-post-grid {
+.message-grid {
   display: grid;
   gap: 14px;
 }
@@ -821,13 +958,20 @@ video {
   overflow: hidden;
 }
 
+.result-link {
+  padding: 0;
+}
+
+.result-link h3 {
+  margin: 0;
+}
+
 .community-glow {
   position: absolute;
-  inset: -40px auto auto -40px;
-  width: 140px;
-  height: 140px;
-  border-radius: 50%;
-  background: rgba(232, 93, 117, 0.14);
+  inset: 0 auto auto 0;
+  width: 100%;
+  height: 4px;
+  background: linear-gradient(90deg, var(--rose), var(--gold), var(--teal));
 }
 
 .community-card > *:not(.community-glow) {
@@ -858,56 +1002,148 @@ video {
   margin: 0;
 }
 
-.profile-header {
+.instagram-profile {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: 24px;
+  grid-template-columns: 170px minmax(0, 1fr);
+  gap: 28px;
+  align-items: start;
+  padding: 28px;
+  margin-bottom: 14px;
+}
+
+.profile-avatar-shell {
+  display: grid;
+  justify-items: center;
+  padding-top: 6px;
+}
+
+.profile-main {
+  display: grid;
+  gap: 16px;
+}
+
+.profile-title-row {
+  display: flex;
   align-items: center;
-  padding: 24px;
-  margin-bottom: 16px;
+  justify-content: space-between;
+  gap: 16px;
 }
 
-.profile-copy {
-  display: grid;
-  gap: 10px;
+.profile-title-row h2 {
+  font-size: 1.75rem;
 }
 
-.profile-stats {
+.profile-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 18px;
+  gap: 8px;
+  justify-content: flex-end;
 }
 
-.profile-stats strong {
+.profile-meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 28px;
+}
+
+.profile-meta-row strong {
+  color: var(--text);
   margin-right: 4px;
 }
 
-.profile-post-grid {
+.profile-bio {
+  display: grid;
+  gap: 4px;
+  max-width: 58ch;
+}
+
+.profile-bio p {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.highlight-row {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 92px;
+  gap: 14px;
+  overflow-x: auto;
+  padding: 14px;
+  margin-bottom: 14px;
+}
+
+.highlight {
+  display: grid;
+  justify-items: center;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 850;
+}
+
+.highlight::before {
+  display: block;
+  width: 58px;
+  height: 58px;
+  border: 2px solid transparent;
+  border-radius: 50%;
+  background:
+    linear-gradient(#fff, #fff) padding-box,
+    linear-gradient(135deg, var(--rose), var(--gold), var(--teal)) border-box;
+  content: "";
+}
+
+.profile-grid {
+  display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
   margin-top: 16px;
 }
 
-.profile-grid-card {
-  overflow: hidden;
+.profile-grid .empty-state {
+  grid-column: 1 / -1;
 }
 
-.profile-grid-card img,
-.profile-grid-card video {
+.profile-tile {
+  position: relative;
+  overflow: hidden;
+  box-shadow: none;
+}
+
+.profile-tile img,
+.profile-tile video {
   width: 100%;
   aspect-ratio: 1;
   object-fit: cover;
 }
 
-.profile-grid-card .text-tile {
+.profile-tile span {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  display: inline-flex;
+  min-height: 24px;
+  align-items: center;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: rgba(23, 21, 31, 0.72);
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 900;
+}
+
+.thread-tile {
   display: grid;
   min-height: 220px;
   place-items: center;
   padding: 18px;
-  background:
-    radial-gradient(circle at 20% 10%, rgba(232, 93, 117, 0.15), transparent 14rem),
-    var(--panel-solid);
+  background: linear-gradient(135deg, #fff, #fff7f1 48%, #eefaf7);
   color: var(--text);
   line-height: 1.5;
+}
+
+.thread-tile p {
+  margin: 0;
 }
 
 .toast {
@@ -951,13 +1187,24 @@ video {
   }
 
   .brand,
-  .sidebar-profile {
+  .sidebar-profile-button {
     justify-content: center;
   }
 
   .nav-item {
     grid-template-columns: 1fr;
     justify-items: center;
+  }
+}
+
+@media (max-width: 820px) {
+  .auth-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .auth-brand h1 {
+    max-width: 14ch;
+    font-size: 2.35rem;
   }
 }
 
@@ -1013,21 +1260,27 @@ video {
   }
 
   .form-row,
-  .profile-header {
+  .instagram-profile {
     grid-template-columns: 1fr;
   }
 
-  .profile-header {
+  .instagram-profile {
     justify-items: center;
     text-align: center;
   }
 
-  .profile-stats,
+  .profile-title-row {
+    display: grid;
+    justify-items: center;
+  }
+
+  .profile-actions,
+  .profile-meta-row,
   .content-tabs {
     justify-content: center;
   }
 
-  .profile-post-grid {
+  .profile-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
@@ -1035,6 +1288,10 @@ video {
 @media (max-width: 540px) {
   .main-panel {
     padding: 12px;
+  }
+
+  .auth-mode .main-panel {
+    padding: 18px;
   }
 
   .topbar {
@@ -1066,5 +1323,13 @@ video {
 
   .focus-caption {
     right: 68px;
+  }
+
+  .instagram-profile {
+    padding: 20px;
+  }
+
+  .profile-grid {
+    grid-template-columns: 1fr;
   }
 }

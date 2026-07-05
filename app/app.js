@@ -1,15 +1,21 @@
-const state = {
+﻿const state = {
   view: "home",
   feedScope: "for-you",
   postTypeTab: "media",
+  profileTab: "media",
+  profileHandle: "",
   discoverIndex: 0,
   createType: "text",
   mediaData: "",
   mediaName: "",
   searchQuery: "",
+  searchResults: null,
+  isSearching: false,
   openComments: "",
+  authMode: "login",
   data: {
     currentUser: null,
+    users: [],
     posts: [],
     communities: [],
     creators: [],
@@ -19,11 +25,11 @@ const state = {
 
 const viewMeta = {
   home: ["Personalized", "Home"],
-  discover: ["Media and threads", "Discover"],
+  discover: ["Focused discovery", "Discover"],
   create: ["Text, photo, video", "Create"],
   search: ["Explore PulseSpace", "Search"],
   communities: ["Topic spaces", "Communities"],
-  messages: ["Preview only", "Messages"],
+  messages: ["Display only", "Messages"],
   profile: ["Public identity", "Profile"]
 };
 
@@ -33,6 +39,9 @@ const viewEyebrow = document.querySelector("#viewEyebrow");
 const navList = document.querySelector("#navList");
 const toast = document.querySelector("#toast");
 const topbarStatus = document.querySelector("#topbarStatus");
+const sidebarProfile = document.querySelector("#sidebarProfile");
+
+let searchTimer = 0;
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -43,8 +52,23 @@ function escapeHtml(value) {
     .replaceAll("'", "&#039;");
 }
 
+function escapeAttr(value) {
+  return escapeHtml(value).replaceAll("`", "&#096;");
+}
+
 function formatNumber(value) {
-  return value >= 1000 ? `${(value / 1000).toFixed(1)}K` : String(value);
+  const number = Number(value || 0);
+  if (Number.isNaN(number)) return String(value || "0");
+  return number >= 1000 ? `${(number / 1000).toFixed(1)}K` : String(number);
+}
+
+function normalizeHandle(value) {
+  const handle = String(value || "").trim().toLowerCase();
+  return handle.startsWith("@") ? handle : `@${handle}`;
+}
+
+function currentUser() {
+  return state.data.currentUser;
 }
 
 function mediaPosts(posts = state.data.posts) {
@@ -55,14 +79,16 @@ function threadPosts(posts = state.data.posts) {
   return posts.filter((post) => post.type === "text");
 }
 
-function postsForType(posts = state.data.posts) {
-  return state.postTypeTab === "media" ? mediaPosts(posts) : threadPosts(posts);
+function postsForTab(posts = state.data.posts, tab = state.postTypeTab) {
+  if (tab === "threads") return threadPosts(posts);
+  if (tab === "tagged") return [];
+  return mediaPosts(posts);
 }
 
 function followingPosts() {
-  const following = new Set(state.data.currentUser?.following || []);
-  const ownHandle = state.data.currentUser?.handle;
-  return state.data.posts.filter((post) => following.has(post.handle) || post.handle === ownHandle);
+  const user = currentUser();
+  const following = new Set(user?.following || []);
+  return state.data.posts.filter((post) => following.has(post.authorId) || post.authorId === user?.id);
 }
 
 function forYouPosts() {
@@ -73,10 +99,11 @@ function forYouPosts() {
 
 async function api(path, options = {}) {
   const response = await fetch(path, {
+    credentials: "same-origin",
     headers: { "content-type": "application/json", ...(options.headers || {}) },
     ...options
   });
-  const payload = await response.json();
+  const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
     throw new Error(payload.error || "Request failed.");
   }
@@ -86,8 +113,18 @@ async function api(path, options = {}) {
 async function loadBootstrap() {
   topbarStatus.textContent = "Connecting...";
   const data = await api("/api/bootstrap");
-  state.data = data;
-  topbarStatus.textContent = "Backend connected";
+  state.data = {
+    currentUser: data.currentUser || null,
+    users: data.users || data.creators || [],
+    creators: data.creators || data.users || [],
+    posts: data.posts || [],
+    communities: data.communities || [],
+    messages: data.messages || []
+  };
+  if (!state.profileHandle && state.data.currentUser) {
+    state.profileHandle = state.data.currentUser.handle;
+  }
+  topbarStatus.textContent = state.data.currentUser ? "Backend connected" : "Sign in required";
 }
 
 function showToast(message) {
@@ -114,12 +151,38 @@ function setHeader() {
   viewTitle.textContent = title;
 }
 
+function setSignedInUi(isSignedIn) {
+  document.body.classList.toggle("auth-mode", !isSignedIn);
+}
+
 function renderShell() {
+  const user = currentUser();
+  setSignedInUi(Boolean(user));
+
+  if (!user) {
+    renderAuth();
+    return;
+  }
+
   setHeader();
+  renderSidebarProfile();
   document.querySelectorAll(".nav-item").forEach((item) => {
     item.classList.toggle("is-active", item.dataset.view === state.view);
   });
   renderView();
+}
+
+function renderSidebarProfile() {
+  const user = currentUser();
+  sidebarProfile.innerHTML = `
+    <button class="sidebar-profile-button" data-profile-handle="${escapeAttr(user.handle)}" type="button">
+      <div class="avatar">${escapeHtml(user.initials)}</div>
+      <div>
+        <strong>${escapeHtml(user.name)}</strong>
+        <span>${escapeHtml(user.handle)}</span>
+      </div>
+    </button>
+  `;
 }
 
 function renderView() {
@@ -130,6 +193,44 @@ function renderView() {
   if (state.view === "communities") renderCommunities();
   if (state.view === "messages") renderMessages();
   if (state.view === "profile") renderProfile();
+}
+
+function renderAuth() {
+  topbarStatus.textContent = "Sign in required";
+  viewRoot.innerHTML = `
+    <section class="auth-shell">
+      <div class="auth-brand">
+        <div class="brand-mark">P</div>
+        <div>
+          <p class="eyebrow">PulseSpace</p>
+          <h1>Sign in to your creator feed.</h1>
+          <p>One clean social surface for visual posts, text threads, profiles, search, and communities.</p>
+        </div>
+      </div>
+      <article class="auth-card">
+        <div class="auth-tabs" role="tablist" aria-label="Authentication tabs">
+          <button class="${state.authMode === "login" ? "is-active" : ""}" data-auth-mode="login" type="button">Log in</button>
+          <button class="${state.authMode === "signup" ? "is-active" : ""}" data-auth-mode="signup" type="button">Sign up</button>
+        </div>
+        ${
+          state.authMode === "login"
+            ? `<form class="auth-form" id="loginForm">
+                <label>Email or handle<input name="identifier" autocomplete="username" value="founder@pulsespace.local" required /></label>
+                <label>Password<input name="password" type="password" autocomplete="current-password" value="password123" required /></label>
+                <button class="primary-button" type="submit">Log in</button>
+                <p class="demo-credentials">Demo: founder@pulsespace.local / password123</p>
+              </form>`
+            : `<form class="auth-form" id="signupForm">
+                <label>Name<input name="name" autocomplete="name" required maxlength="60" placeholder="Your name" /></label>
+                <label>Email<input name="email" type="email" autocomplete="email" required placeholder="you@example.com" /></label>
+                <label>Handle<input name="handle" required minlength="3" maxlength="24" placeholder="yourhandle" /></label>
+                <label>Password<input name="password" type="password" autocomplete="new-password" required minlength="8" placeholder="At least 8 characters" /></label>
+                <button class="primary-button" type="submit">Create account</button>
+              </form>`
+        }
+      </article>
+    </section>
+  `;
 }
 
 function renderHome() {
@@ -155,8 +256,8 @@ function renderHome() {
 function renderStory(community) {
   return `
     <article class="story-item">
-      <div class="story-ring"><span>${community.initials}</span></div>
-      <strong>${community.name}</strong>
+      <div class="story-ring"><span>${escapeHtml(community.initials)}</span></div>
+      <strong>${escapeHtml(community.name)}</strong>
     </article>
   `;
 }
@@ -169,15 +270,15 @@ function renderPost(post) {
       : `<p class="post-caption"><strong>${escapeHtml(post.author)}</strong> ${escapeHtml(post.text)}</p>`;
 
   return `
-    <article class="post-card" id="post-${post.id}">
+    <article class="post-card" id="post-${escapeAttr(post.id)}">
       <div class="post-header">
-        <div class="identity">
+        <button class="identity identity-button" data-profile-handle="${escapeAttr(post.handle)}" type="button">
           <div class="avatar">${escapeHtml(post.initials)}</div>
           <div>
             <strong>${escapeHtml(post.author)}</strong>
             <span>${escapeHtml(post.handle)} - ${escapeHtml(post.community)}</span>
           </div>
-        </div>
+        </button>
         <span class="post-type-label">${post.type === "text" ? "Thread" : post.type}</span>
       </div>
       ${mediaMarkup}
@@ -185,10 +286,10 @@ function renderPost(post) {
         ${caption}
         <div class="post-meta">#${escapeHtml(post.tag)} - ${new Date(post.createdAt).toLocaleDateString()}</div>
         <div class="post-actions">
-          <button class="action-button ${post.liked ? "is-active" : ""}" data-action="like" data-post-id="${post.id}" type="button">Like ${formatNumber(post.likes)}</button>
-          <button class="action-button ${state.openComments === post.id ? "is-active" : ""}" data-action="comments" data-post-id="${post.id}" type="button">Comments ${post.commentsCount}</button>
-          <button class="action-button" data-action="share" data-post-id="${post.id}" type="button">Share ${post.shares}</button>
-          <button class="action-button ${post.saved ? "is-active" : ""}" data-action="save" data-post-id="${post.id}" type="button">${post.saved ? "Saved" : "Save"}</button>
+          <button class="action-button ${post.liked ? "is-active" : ""}" data-action="like" data-post-id="${escapeAttr(post.id)}" type="button">Like ${formatNumber(post.likes)}</button>
+          <button class="action-button ${state.openComments === post.id ? "is-active" : ""}" data-action="comments" data-post-id="${escapeAttr(post.id)}" type="button">Comments ${post.commentsCount}</button>
+          <button class="action-button" data-action="share" data-post-id="${escapeAttr(post.id)}" type="button">Share ${post.shares}</button>
+          <button class="action-button ${post.saved ? "is-active" : ""}" data-action="save" data-post-id="${escapeAttr(post.id)}" type="button">${post.saved ? "Saved" : "Save"}</button>
         </div>
         ${state.openComments === post.id ? renderComments(post) : ""}
       </div>
@@ -221,20 +322,11 @@ function renderComments(post) {
       <div class="comments-list">
         ${
           post.comments?.length
-            ? post.comments
-                .map(
-                  (comment) => `
-                    <div class="comment-row">
-                      <div class="avatar tiny-avatar">${escapeHtml(comment.initials)}</div>
-                      <p><strong>${escapeHtml(comment.author)}</strong> ${escapeHtml(comment.text)}</p>
-                    </div>
-                  `
-                )
-                .join("")
+            ? post.comments.map(renderComment).join("")
             : `<p class="muted">No comments yet. Start the conversation.</p>`
         }
       </div>
-      <form class="comment-form" data-comment-form="${post.id}">
+      <form class="comment-form" data-comment-form="${escapeAttr(post.id)}">
         <input name="comment" maxlength="280" placeholder="Add a comment" required />
         <button class="secondary-button" type="submit">Post</button>
       </form>
@@ -242,26 +334,40 @@ function renderComments(post) {
   `;
 }
 
+function renderComment(comment) {
+  return `
+    <div class="comment-row">
+      <div class="avatar tiny-avatar">${escapeHtml(comment.initials)}</div>
+      <p><strong>${escapeHtml(comment.author)}</strong> ${escapeHtml(comment.text)}</p>
+    </div>
+  `;
+}
+
 function renderDiscover() {
-  const posts = postsForType();
-  const post = posts[state.discoverIndex % Math.max(posts.length, 1)];
+  const posts = postsForTab(state.data.posts, state.postTypeTab);
+  if (state.discoverIndex >= posts.length) state.discoverIndex = 0;
+  const post = posts.length ? posts[state.discoverIndex] : null;
+
   viewRoot.innerHTML = `
     <section class="discover-layout">
-      ${renderTypeTabs("discover")}
+      ${renderTypeTabs("discover", state.postTypeTab)}
       ${
         post
           ? `<article class="focus-card">
               ${renderFocusMedia(post)}
               <div class="focus-caption">
-                <strong>${escapeHtml(post.author)} <span>${escapeHtml(post.handle)}</span></strong>
+                <button class="focus-author" data-profile-handle="${escapeAttr(post.handle)}" type="button">
+                  <strong>${escapeHtml(post.author)}</strong>
+                  <span>${escapeHtml(post.handle)}</span>
+                </button>
                 <p>${escapeHtml(post.text)}</p>
                 <span>#${escapeHtml(post.tag)} - ${escapeHtml(post.community)}</span>
               </div>
               <div class="focus-actions">
-                <button class="${post.liked ? "is-active" : ""}" data-action="like" data-post-id="${post.id}" type="button" aria-label="Like">L</button>
-                <button data-action="comments" data-post-id="${post.id}" type="button" aria-label="Comments">C</button>
-                <button data-action="share" data-post-id="${post.id}" type="button" aria-label="Share">S</button>
-                <button class="${post.saved ? "is-active" : ""}" data-action="save" data-post-id="${post.id}" type="button" aria-label="Save">B</button>
+                <button class="${post.liked ? "is-active" : ""}" data-action="like" data-post-id="${escapeAttr(post.id)}" type="button" aria-label="Like">L</button>
+                <button data-action="comments" data-post-id="${escapeAttr(post.id)}" type="button" aria-label="Comments">C</button>
+                <button data-action="share" data-post-id="${escapeAttr(post.id)}" type="button" aria-label="Share">S</button>
+                <button class="${post.saved ? "is-active" : ""}" data-action="save" data-post-id="${escapeAttr(post.id)}" type="button" aria-label="Save">B</button>
               </div>
             </article>
             <div class="discover-controls">
@@ -269,7 +375,7 @@ function renderDiscover() {
               <span>${state.discoverIndex + 1} of ${posts.length}</span>
               <button class="secondary-button" data-discover-step="1" type="button">Next</button>
             </div>
-            ${state.openComments === post.id ? `<div class="home-layout">${renderPost(post)}</div>` : ""}`
+            ${state.openComments === post.id ? `<div class="home-layout focus-comments">${renderPost(post)}</div>` : ""}`
           : `<div class="empty-state"><strong>No ${state.postTypeTab === "media" ? "media posts" : "threads"} yet</strong><p>Create one and it will appear here.</p></div>`
       }
     </section>
@@ -286,11 +392,17 @@ function renderFocusMedia(post) {
   return `<img src="${post.mediaUrl}" alt="${escapeHtml(post.type)} by ${escapeHtml(post.author)}" />`;
 }
 
-function renderTypeTabs(scope) {
+function renderTypeTabs(scope, activeTab) {
+  const tabs = scope === "profile" ? ["media", "threads", "tagged"] : ["media", "threads"];
+  const labels = { media: "Posts", threads: "Threads", tagged: "Tagged" };
   return `
     <div class="content-tabs" aria-label="${scope} post type tabs">
-      <button class="content-tab ${state.postTypeTab === "media" ? "is-active" : ""}" data-post-type-tab="media" type="button">Media</button>
-      <button class="content-tab ${state.postTypeTab === "threads" ? "is-active" : ""}" data-post-type-tab="threads" type="button">Threads</button>
+      ${tabs
+        .map(
+          (tab) =>
+            `<button class="content-tab ${activeTab === tab ? "is-active" : ""}" data-${scope}-tab="${tab}" type="button">${labels[tab]}</button>`
+        )
+        .join("")}
     </div>
   `;
 }
@@ -348,25 +460,28 @@ function renderUploadPreview() {
 
 function renderSearch() {
   const query = state.searchQuery.trim();
-  const results = query ? getLocalSearchResults(query) : { posts: [], creators: [], communities: [] };
-  const hasResults = results.posts.length || results.creators.length || results.communities.length;
+  const results = state.searchResults || { posts: [], users: [], creators: [], communities: [] };
+  const users = results.users || results.creators || [];
+  const hasResults = results.posts.length || users.length || results.communities.length;
 
   viewRoot.innerHTML = `
     <section class="search-page">
       <label class="search-input-label">
         <span>Search</span>
-        <input id="searchPageInput" type="search" value="${escapeHtml(state.searchQuery)}" placeholder="Search posts, creators, communities" autofocus />
+        <input id="searchPageInput" type="search" value="${escapeAttr(state.searchQuery)}" placeholder="Search posts, people, communities" autocomplete="off" />
       </label>
       ${
         query
-          ? hasResults
-            ? `<div class="search-results">
-                ${results.creators.map(renderCreatorResult).join("")}
-                ${results.communities.map(renderCommunityResult).join("")}
-                ${results.posts.map(renderPostResult).join("")}
-              </div>`
-            : `<div class="empty-state"><strong>No results</strong><p>Try a creator name, topic, post type, or community.</p></div>`
-          : `<div class="search-hero"><strong>Find creators, communities, and posts.</strong><p>Search is now its own dedicated tab instead of competing with the feed.</p></div>`
+          ? state.isSearching
+            ? `<div class="loading-card">Searching...</div>`
+            : hasResults
+              ? `<div class="search-results">
+                  ${users.map(renderUserResult).join("")}
+                  ${results.communities.map(renderCommunityResult).join("")}
+                  ${results.posts.map(renderPostResult).join("")}
+                </div>`
+              : `<div class="empty-state"><strong>No results</strong><p>Try a creator name, topic, post type, or community.</p></div>`
+          : `<div class="search-hero"><strong>Find creators, communities, and posts.</strong><p>Search has its own dedicated tab so it never competes with the feed.</p></div>`
       }
     </section>
   `;
@@ -376,33 +491,17 @@ function renderSearch() {
   input?.setSelectionRange(input.value.length, input.value.length);
 }
 
-function getLocalSearchResults(query) {
-  const needle = query.toLowerCase();
-  const includes = (...values) => values.join(" ").toLowerCase().includes(needle);
-  return {
-    creators: state.data.creators.filter((creator) =>
-      includes(creator.name, creator.handle, creator.niche, creator.followers)
-    ),
-    communities: state.data.communities.filter((community) =>
-      includes(community.name, community.members, community.focus)
-    ),
-    posts: state.data.posts.filter((post) =>
-      includes(post.author, post.handle, post.community, post.type, post.text, post.tag)
-    )
-  };
-}
-
-function renderCreatorResult(creator) {
+function renderUserResult(user) {
   return `
     <article class="result-card">
-      <span class="chip">Creator</span>
-      <div class="identity">
-        <div class="avatar">${escapeHtml(creator.initials)}</div>
+      <span class="chip">Profile</span>
+      <button class="identity identity-button" data-profile-handle="${escapeAttr(user.handle)}" type="button">
+        <div class="avatar">${escapeHtml(user.initials)}</div>
         <div>
-          <strong>${escapeHtml(creator.name)}</strong>
-          <span>${escapeHtml(creator.handle)} - ${escapeHtml(creator.niche)}</span>
+          <strong>${escapeHtml(user.name)}</strong>
+          <span>${escapeHtml(user.handle)} - ${escapeHtml(user.bio || "Creator")}</span>
         </div>
-      </div>
+      </button>
     </article>
   `;
 }
@@ -421,7 +520,9 @@ function renderPostResult(post) {
   return `
     <article class="result-card">
       <span class="chip">${post.type === "text" ? "Thread" : post.type}</span>
-      <h3>${escapeHtml(post.author)} in ${escapeHtml(post.community)}</h3>
+      <button class="result-link" data-profile-handle="${escapeAttr(post.handle)}" type="button">
+        <h3>${escapeHtml(post.author)} in ${escapeHtml(post.community)}</h3>
+      </button>
       <p>${escapeHtml(post.text)}</p>
     </article>
   `;
@@ -460,7 +561,7 @@ function renderMessages() {
     <section class="messages-layout">
       <div class="dm-note">
         <strong>Messages are display-only in this slice.</strong>
-        <p>The UI is ready for conversations, but live send/receive will be connected after auth and realtime transport.</p>
+        <p>The inbox layout is ready, but realtime sending should be connected after a database and websocket provider are selected.</p>
       </div>
       <div class="message-grid">
         ${state.data.messages
@@ -482,33 +583,70 @@ function renderMessages() {
   `;
 }
 
+function profileUser() {
+  const handle = state.profileHandle || currentUser()?.handle || "";
+  return (
+    state.data.users.find((user) => user.handle === handle) ||
+    state.data.creators.find((user) => user.handle === handle) ||
+    currentUser()
+  );
+}
+
 function renderProfile() {
-  const user = state.data.currentUser;
-  const ownPosts = state.data.posts.filter((post) => post.handle === user.handle);
-  const posts = postsForType(ownPosts);
+  const user = profileUser();
+  if (!user) {
+    viewRoot.innerHTML = `<div class="empty-state"><strong>Profile unavailable</strong><p>Sign in or open a valid profile.</p></div>`;
+    return;
+  }
+
+  const ownProfile = user.id === currentUser()?.id;
+  const allPosts = state.data.posts.filter((post) => post.authorId === user.id || post.handle === user.handle);
+  const posts = postsForTab(allPosts, state.profileTab);
 
   viewRoot.innerHTML = `
-    <section class="profile-header">
-      <div class="avatar large-avatar">${escapeHtml(user.initials)}</div>
-      <div class="profile-copy">
-        <div>
-          <h2>${escapeHtml(user.name)}</h2>
-          <span>${escapeHtml(user.handle)}</span>
+    <section class="instagram-profile">
+      <div class="profile-avatar-shell">
+        <div class="avatar large-avatar">${escapeHtml(user.initials)}</div>
+      </div>
+      <div class="profile-main">
+        <div class="profile-title-row">
+          <div>
+            <h2>${escapeHtml(user.handle.replace("@", ""))}</h2>
+            <span>${escapeHtml(user.name)}</span>
+          </div>
+          <div class="profile-actions">
+            ${
+              ownProfile
+                ? `<button class="secondary-button" type="button">Edit profile</button>
+                   <button class="ghost-button" data-logout type="button">Log out</button>`
+                : `<button class="primary-button" data-follow-handle="${escapeAttr(user.handle)}" type="button">${user.isFollowing ? "Following" : "Follow"}</button>
+                   <button class="secondary-button" data-view="messages" type="button">Message</button>`
+            }
+          </div>
         </div>
-        <p>${escapeHtml(user.bio)}</p>
-        <div class="profile-stats">
-          <span><strong>${ownPosts.length}</strong> posts</span>
-          <span><strong>12.8K</strong> followers</span>
-          <span><strong>${user.following.length}</strong> following</span>
+        <div class="profile-meta-row">
+          <span><strong>${allPosts.length}</strong> posts</span>
+          <span><strong>${user.followers || formatNumber(user.followersCount)}</strong> followers</span>
+          <span><strong>${user.followingCount ?? user.following?.length ?? 0}</strong> following</span>
+        </div>
+        <div class="profile-bio">
+          <strong>${escapeHtml(user.name)}</strong>
+          <p>${escapeHtml(user.bio || "New to PulseSpace.")}</p>
+          ${user.website ? `<a href="#" aria-label="Profile website">${escapeHtml(user.website)}</a>` : ""}
         </div>
       </div>
     </section>
-    ${renderTypeTabs("profile")}
-    <section class="profile-post-grid">
+    <section class="highlight-row" aria-label="Profile highlights">
+      <article class="highlight"><span>Posts</span></article>
+      <article class="highlight"><span>Threads</span></article>
+      <article class="highlight"><span>Saved</span></article>
+    </section>
+    ${renderTypeTabs("profile", state.profileTab)}
+    <section class="profile-grid">
       ${
         posts.length
           ? posts.map(renderProfileTile).join("")
-          : `<div class="empty-state"><strong>No ${state.postTypeTab === "media" ? "media posts" : "threads"} yet</strong><p>Publish one from Create.</p></div>`
+          : `<div class="empty-state"><strong>No ${state.profileTab === "threads" ? "threads" : state.profileTab === "tagged" ? "tagged posts" : "media posts"} yet</strong><p>${ownProfile ? "Publish one from Create." : "This profile has not posted here yet."}</p></div>`
       }
     </section>
   `;
@@ -516,12 +654,46 @@ function renderProfile() {
 
 function renderProfileTile(post) {
   if (post.type === "text") {
-    return `<article class="profile-grid-card"><div class="text-tile">${escapeHtml(post.text)}</div></article>`;
+    return `<article class="profile-tile thread-tile"><p>${escapeHtml(post.text)}</p></article>`;
   }
   if (post.type === "video" && post.mediaUrl.startsWith("data:")) {
-    return `<article class="profile-grid-card"><video src="${post.mediaUrl}" controls></video></article>`;
+    return `<article class="profile-tile"><video src="${post.mediaUrl}" controls></video><span>Video</span></article>`;
   }
-  return `<article class="profile-grid-card"><img src="${post.mediaUrl}" alt="${escapeHtml(post.type)} post" loading="lazy" /></article>`;
+  return `<article class="profile-tile"><img src="${post.mediaUrl}" alt="${escapeHtml(post.type)} post" loading="lazy" /><span>${post.type === "video" ? "Video" : "Photo"}</span></article>`;
+}
+
+async function handleAuth(mode, form) {
+  const payload =
+    mode === "login"
+      ? {
+          identifier: form.elements.identifier.value.trim(),
+          password: form.elements.password.value
+        }
+      : {
+          name: form.elements.name.value.trim(),
+          email: form.elements.email.value.trim(),
+          handle: form.elements.handle.value.trim(),
+          password: form.elements.password.value
+        };
+
+  await api(`/api/auth/${mode}`, {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+  await loadBootstrap();
+  state.view = "home";
+  state.profileHandle = currentUser()?.handle || "";
+  showToast(mode === "login" ? "Welcome back" : "Account created");
+  renderShell();
+}
+
+async function logout() {
+  await api("/api/auth/logout", { method: "POST", body: "{}" });
+  state.data.currentUser = null;
+  state.view = "home";
+  state.profileHandle = "";
+  showToast("Logged out");
+  renderShell();
 }
 
 async function handlePostAction(action, postId) {
@@ -543,8 +715,12 @@ async function handlePostAction(action, postId) {
 }
 
 async function copyShareUrl(url) {
-  if (navigator.clipboard?.writeText) {
-    await navigator.clipboard.writeText(url);
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(url);
+    }
+  } catch {
+    showToast("Share counted. Copy is unavailable in this browser.");
   }
 }
 
@@ -579,37 +755,125 @@ async function createPost(form) {
   updatePost(payload.post);
   state.mediaData = "";
   state.mediaName = "";
+  state.postTypeTab = state.createType === "text" ? "threads" : "media";
+  state.profileTab = state.postTypeTab;
   state.view = "home";
   showToast("Post published");
+  renderShell();
+}
+
+async function submitComment(form) {
+  const input = form.elements.comment;
+  const postId = form.dataset.commentForm;
+  const payload = await api(`/api/posts/${postId}/comments`, {
+    method: "POST",
+    body: JSON.stringify({ text: input.value.trim() })
+  });
+  updatePost(payload.post);
+  input.value = "";
+  showToast("Comment posted");
+  renderShell();
+}
+
+async function followProfile(handle) {
+  const apiHandle = normalizeHandle(handle).replace(/^@/, "");
+  const payload = await api(`/api/users/${apiHandle}/follow`, {
+    method: "POST",
+    body: "{}"
+  });
+  state.data.currentUser = payload.currentUser;
+  const updateUser = (list) => {
+    const index = list.findIndex((user) => user.id === payload.user.id);
+    if (index >= 0) list[index] = payload.user;
+  };
+  updateUser(state.data.users);
+  updateUser(state.data.creators);
+  showToast(payload.user.isFollowing ? "Following" : "Unfollowed");
+  renderShell();
+}
+
+async function runSearch(query) {
+  const trimmed = query.trim();
+  if (!trimmed) {
+    state.searchResults = null;
+    state.isSearching = false;
+    renderSearch();
+    return;
+  }
+
+  state.isSearching = true;
+  renderSearch();
+  try {
+    state.searchResults = await api(`/api/search?q=${encodeURIComponent(trimmed)}`);
+  } finally {
+    state.isSearching = false;
+    renderSearch();
+  }
+}
+
+function openProfile(handle) {
+  state.profileHandle = normalizeHandle(handle);
+  state.profileTab = "media";
+  state.view = "profile";
+  state.openComments = "";
   renderShell();
 }
 
 navList.addEventListener("click", (event) => {
   const button = event.target.closest("[data-view]");
   if (!button) return;
+  if (!currentUser()) return;
   state.view = button.dataset.view;
+  if (state.view === "profile") {
+    state.profileHandle = currentUser().handle;
+  }
   state.openComments = "";
   state.discoverIndex = 0;
   renderShell();
 });
 
 document.addEventListener("click", async (event) => {
+  const authMode = event.target.closest("[data-auth-mode]");
   const feedTab = event.target.closest("[data-feed-scope]");
-  const typeTab = event.target.closest("[data-post-type-tab]");
+  const discoverTab = event.target.closest("[data-discover-tab]");
+  const profileTab = event.target.closest("[data-profile-tab]");
   const createType = event.target.closest("[data-create-type]");
   const actionButton = event.target.closest("[data-action]");
   const discoverStep = event.target.closest("[data-discover-step]");
+  const profileButton = event.target.closest("[data-profile-handle]");
+  const followButton = event.target.closest("[data-follow-handle]");
+  const logoutButton = event.target.closest("[data-logout]");
+  const viewButton = event.target.closest("[data-view]");
 
   try {
+    if (authMode) {
+      state.authMode = authMode.dataset.authMode;
+      renderAuth();
+      return;
+    }
+
+    if (profileButton && !actionButton && !followButton) {
+      openProfile(profileButton.dataset.profileHandle);
+      return;
+    }
+
     if (feedTab) {
       state.feedScope = feedTab.dataset.feedScope;
       renderHome();
+      return;
     }
 
-    if (typeTab) {
-      state.postTypeTab = typeTab.dataset.postTypeTab;
+    if (discoverTab) {
+      state.postTypeTab = discoverTab.dataset.discoverTab;
       state.discoverIndex = 0;
-      renderShell();
+      renderDiscover();
+      return;
+    }
+
+    if (profileTab) {
+      state.profileTab = profileTab.dataset.profileTab;
+      renderProfile();
+      return;
     }
 
     if (createType) {
@@ -617,13 +881,33 @@ document.addEventListener("click", async (event) => {
       state.mediaData = "";
       state.mediaName = "";
       renderCreate();
+      return;
     }
 
     if (discoverStep) {
-      const posts = postsForType();
-      const next = state.discoverIndex + Number(discoverStep.dataset.discoverStep);
-      state.discoverIndex = (next + posts.length) % posts.length;
+      const posts = postsForTab(state.data.posts, state.postTypeTab);
+      if (posts.length) {
+        const next = state.discoverIndex + Number(discoverStep.dataset.discoverStep);
+        state.discoverIndex = (next + posts.length) % posts.length;
+      }
       renderDiscover();
+      return;
+    }
+
+    if (followButton) {
+      await followProfile(followButton.dataset.followHandle);
+      return;
+    }
+
+    if (logoutButton) {
+      await logout();
+      return;
+    }
+
+    if (viewButton && viewButton.dataset.view === "messages") {
+      state.view = "messages";
+      renderShell();
+      return;
     }
 
     if (actionButton) {
@@ -637,7 +921,10 @@ document.addEventListener("click", async (event) => {
 document.addEventListener("input", async (event) => {
   if (event.target.id === "searchPageInput") {
     state.searchQuery = event.target.value;
-    renderSearch();
+    window.clearTimeout(searchTimer);
+    searchTimer = window.setTimeout(() => {
+      runSearch(state.searchQuery).catch((error) => showToast(error.message));
+    }, 220);
   }
 
   if (event.target.id === "mediaInput") {
@@ -660,10 +947,22 @@ document.addEventListener("input", async (event) => {
 });
 
 document.addEventListener("submit", async (event) => {
+  const loginForm = event.target.closest("#loginForm");
+  const signupForm = event.target.closest("#signupForm");
   const createForm = event.target.closest("#createForm");
   const commentForm = event.target.closest("[data-comment-form]");
 
   try {
+    if (loginForm) {
+      event.preventDefault();
+      await handleAuth("login", loginForm);
+    }
+
+    if (signupForm) {
+      event.preventDefault();
+      await handleAuth("signup", signupForm);
+    }
+
     if (createForm) {
       event.preventDefault();
       await createPost(createForm);
@@ -671,16 +970,7 @@ document.addEventListener("submit", async (event) => {
 
     if (commentForm) {
       event.preventDefault();
-      const input = commentForm.elements.comment;
-      const postId = commentForm.dataset.commentForm;
-      const payload = await api(`/api/posts/${postId}/comments`, {
-        method: "POST",
-        body: JSON.stringify({ text: input.value.trim() })
-      });
-      updatePost(payload.post);
-      input.value = "";
-      showToast("Comment posted");
-      renderShell();
+      await submitComment(commentForm);
     }
   } catch (error) {
     showToast(error.message);
@@ -698,3 +988,5 @@ async function init() {
 }
 
 init();
+
+

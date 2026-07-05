@@ -107,7 +107,8 @@
         "u_founder"
       ],
       "savedBy": [],
-      "comments": []
+      "comments": [],
+      "authorId": "u_founder"
     },
     {
       "id": "p1783260766407",
@@ -134,9 +135,11 @@
           "author": "Founder",
           "initials": "F",
           "text": "qGVHVJDFV",
-          "createdAt": "2026-07-05T14:13:14.458Z"
+          "createdAt": "2026-07-05T14:13:14.458Z",
+          "authorId": "u_founder"
         }
-      ]
+      ],
+      "authorId": "u_founder"
     },
     {
       "id": "p1",
@@ -161,9 +164,11 @@
           "author": "Founder",
           "initials": "F",
           "text": "This is the right direction for text posts.",
-          "createdAt": "2026-07-05T14:06:44.309Z"
+          "createdAt": "2026-07-05T14:06:44.309Z",
+          "authorId": "u_founder"
         }
-      ]
+      ],
+      "authorId": "u_maya"
     },
     {
       "id": "p2",
@@ -188,9 +193,11 @@
           "author": "Maya Chen",
           "initials": "MC",
           "text": "The layout feels much more scannable.",
-          "createdAt": "2026-07-05T14:06:44.309Z"
+          "createdAt": "2026-07-05T14:06:44.309Z",
+          "authorId": "u_maya"
         }
-      ]
+      ],
+      "authorId": "u_arjun"
     },
     {
       "id": "p3",
@@ -213,9 +220,91 @@
           "author": "Founder",
           "initials": "F",
           "text": "dfavfv",
-          "createdAt": "2026-07-05T14:12:16.218Z"
+          "createdAt": "2026-07-05T14:12:16.218Z",
+          "authorId": "u_founder"
         }
-      ]
+      ],
+      "authorId": "u_nia"
+    }
+  ],
+  "version": 3,
+  "sessions": [
+    {
+      "id": "e147011ee4894ba2db65461a36f7aa9ef5e62d16675ea94382ab541b5a7e6f3e",
+      "userId": "u_founder",
+      "createdAt": "2026-07-05T16:25:44.545Z",
+      "expiresAt": "2026-07-12T16:25:44.545Z"
+    },
+    {
+      "id": "78759940829029f9242009e1bc1155bf790a17f3183444e2e61259d56ce0f762",
+      "userId": "u_founder",
+      "createdAt": "2026-07-05T16:29:08.803Z",
+      "expiresAt": "2026-07-12T16:29:08.803Z"
+    }
+  ],
+  "users": [
+    {
+      "id": "u_founder",
+      "name": "Founder",
+      "handle": "@founder",
+      "email": "founder@pulsespace.local",
+      "initials": "F",
+      "bio": "Building PulseSpace: focused discovery, text threads, and creator communities.",
+      "website": "pulsespace.local",
+      "avatarUrl": "",
+      "followers": "12.8K",
+      "following": [
+        "u_maya",
+        "u_nia"
+      ],
+      "passwordSalt": "bbb853ba114d4824fbb89bbafccf1bd3",
+      "passwordHash": "7d96501d3f0271787d14dc9f0bec2c06e354e4fef7d8aa5d895b3b5291b69ec9697c37dc801bb333ebd3f7f978dc6d0b7cb60948c526ad17c4545eb4c6caf7b0",
+      "createdAt": "2026-07-05T16:25:02.323Z"
+    },
+    {
+      "id": "u_maya",
+      "name": "Maya Chen",
+      "handle": "@maya",
+      "email": "",
+      "initials": "MC",
+      "bio": "Creator strategy",
+      "website": "",
+      "avatarUrl": "",
+      "followers": "82K",
+      "following": [],
+      "passwordSalt": "",
+      "passwordHash": "",
+      "createdAt": "2026-07-05T16:25:02.323Z"
+    },
+    {
+      "id": "u_arjun",
+      "name": "Arjun Patel",
+      "handle": "@arjunbuilds",
+      "email": "",
+      "initials": "AP",
+      "bio": "Fitness systems",
+      "website": "",
+      "avatarUrl": "",
+      "followers": "41K",
+      "following": [],
+      "passwordSalt": "",
+      "passwordHash": "",
+      "createdAt": "2026-07-05T16:25:02.323Z"
+    },
+    {
+      "id": "u_nia",
+      "name": "Nia Brooks",
+      "handle": "@niab",
+      "email": "",
+      "initials": "NB",
+      "bio": "Indie music",
+      "website": "",
+      "avatarUrl": "",
+      "followers": "128K",
+      "following": [],
+      "passwordSalt": "",
+      "passwordHash": "",
+      "createdAt": "2026-07-05T16:25:02.323Z"
     }
   ]
 }
